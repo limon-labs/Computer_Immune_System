@@ -48,3 +48,33 @@ def test_recovery_manager_records_and_dry_run_rolls_back(tmp_path):
 
     assert manager.latest(1)[0] == record
     assert manager.rollback(record) == "dry_run_rollback:suspended"
+
+
+def test_recovery_manager_ignores_corrupt_journal_lines(tmp_path):
+    from self_healing.recovery import RecoveryManager
+
+    journal = tmp_path / "journal.jsonl"
+    journal.write_text("not-json\n", encoding="utf-8")
+    manager = RecoveryManager(journal, dry_run=True)
+    record = manager.record("suspended", 1, "demo")
+
+    assert manager.latest(10) == [record]
+
+
+def test_service_restart_rejects_unsafe_service_names():
+    import pytest
+
+    from self_healing.service_restart import restart_service
+
+    with pytest.raises(ValueError):
+        restart_service("bad service; rm -rf /", dry_run=True)
+
+
+def test_process_isolation_refuses_current_process(tmp_path):
+    import os
+
+    engine = ProcessIsolationEngine({"response": {"dry_run": False}, "recovery": {"journal_path": str(tmp_path / "journal.jsonl")}})
+    event = make_event(90.0)
+    event.pid = os.getpid()
+
+    assert engine.respond(event) == "guardrail_current_process"

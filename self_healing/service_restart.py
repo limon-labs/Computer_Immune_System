@@ -3,10 +3,19 @@
 from __future__ import annotations
 
 import platform
+import re
 import subprocess
+
+_SERVICE_NAME = re.compile(r"^[A-Za-z0-9_.@:-]{1,128}$")
+
+
+def _validate_service_name(service_name: str) -> None:
+    if not _SERVICE_NAME.fullmatch(service_name):
+        raise ValueError("service_name contains unsupported characters")
 
 
 def restart_service(service_name: str, dry_run: bool = True) -> str:
+    _validate_service_name(service_name)
     if dry_run:
         return f"dry_run_restart:{service_name}"
     system = platform.system().lower()

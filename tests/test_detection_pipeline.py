@@ -52,12 +52,12 @@ def test_threat_scorer_combines_findings():
     assert "base64" in " ".join(event.reasons)
 
 
-def test_policy_allowlist_reduces_score_and_suppresses_response():
+def test_policy_allowlist_reduces_score_without_suppressing_name_only_response():
     from core.policy_engine import PolicyEngine
 
     snapshot = make_snapshot(10, cpu=99.0)
     decision = PolicyEngine({"policy": {"allowlist": {"process_names": ["python"]}, "allowlist_score_reduction": 30}}).evaluate(snapshot)
 
     assert decision.action == "allow"
-    assert decision.suppress_response
+    assert not decision.suppress_response
     assert decision.score_adjustment < 0

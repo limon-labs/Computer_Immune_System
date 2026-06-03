@@ -9,6 +9,8 @@ import psutil
 import hashlib
 from pathlib import Path
 
+from core.sanitization import redact_command_line
+
 
 @dataclass(slots=True)
 class ProcessSnapshot:
@@ -59,6 +61,8 @@ class ProcessMonitor:
         monitoring_config = self.config.get("monitoring", {}) if isinstance(self.config.get("monitoring"), Mapping) else {}
         self.max_processes = int(monitoring_config.get("max_processes_per_scan", 1000))
         self.connection_sample_limit = int(monitoring_config.get("connection_sample_limit", 256))
+        self.open_file_sample_limit = int(monitoring_config.get("open_file_sample_limit", 128))
+        self.command_line_max_length = int(monitoring_config.get("command_line_max_length", 4096))
         self.hash_executables = bool(monitoring_config.get("hash_executables", False))
 
     def snapshot(self) -> list[ProcessSnapshot]:
@@ -92,6 +96,8 @@ class ProcessMonitor:
             command_line = str(cmdline or "")
 
         open_files = info.get("open_files") or []
+        open_file_count = min(len(open_files), self.open_file_sample_limit)
+        command_line = redact_command_line(command_line, self.command_line_max_length)
         return ProcessSnapshot(
             pid=int(info.get("pid") or process.pid),
             name=str(info.get("name") or "unknown"),
@@ -103,7 +109,7 @@ class ProcessMonitor:
             cpu_percent=float(info.get("cpu_percent") or 0.0),
             memory_percent=float(info.get("memory_percent") or 0.0),
             num_threads=int(info.get("num_threads") or 0),
-            open_files=len(open_files),
+            open_files=open_file_count,
             connections=len(connections),
             listening_ports=list(sorted(set(listening_ports))),
             remote_ports=list(sorted(set(remote_ports))),

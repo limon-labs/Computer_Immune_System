@@ -26,6 +26,9 @@ class PolicyEngine:
 
     Policy deliberately supports simple glob patterns rather than regular
     expressions so administrators can write portable JSON without regex hazards.
+    Name-only allowlists reduce score but do not suppress response unless they
+    are anchored by executable path or hash policy, because process names are
+    trivial to spoof.
     """
 
     def __init__(self, config: Mapping[str, Any] | None = None):
@@ -36,6 +39,7 @@ class PolicyEngine:
         self.protected = policy.get("protected", {}) if isinstance(policy.get("protected"), Mapping) else {}
         self.allowlist_score_reduction = float(policy.get("allowlist_score_reduction", 30.0))
         self.blocklist_score_floor = float(policy.get("blocklist_score_floor", 95.0))
+        self.require_strong_allowlist = bool(policy.get("require_strong_allowlist", True))
 
     def evaluate(self, snapshot: ProcessSnapshot) -> PolicyDecision:
         reasons: list[str] = []
@@ -53,17 +57,22 @@ class PolicyEngine:
                 suppress_response=False,
                 reasons=reasons,
             )
-        if self._matches_section(snapshot, self.allowlist, "allowlist", reasons):
+        allow_strength = self._match_strength(snapshot, self.allowlist, "allowlist", reasons)
+        if allow_strength:
+            strong_allow = allow_strength in {"path", "hash"} or not self.require_strong_allowlist
             return PolicyDecision(
                 action="allow",
                 score_adjustment=-self.allowlist_score_reduction,
-                suppress_response=True,
-                reasons=reasons,
+                suppress_response=strong_allow,
+                reasons=reasons if strong_allow else [*reasons, "allowlist is name/cmdline-only; response is not suppressed"],
             )
         return PolicyDecision()
 
     def _matches_section(self, snapshot: ProcessSnapshot, section: Mapping[str, Any], label: str, reasons: list[str]) -> bool:
-        matched = False
+        return bool(self._match_strength(snapshot, section, label, reasons))
+
+    def _match_strength(self, snapshot: ProcessSnapshot, section: Mapping[str, Any], label: str, reasons: list[str]) -> str | None:
+        strength: str | None = None
         name = snapshot.name.lower()
         executable = self._normalize_path(snapshot.executable or "")
         command_line = snapshot.command_line.lower()
@@ -71,21 +80,21 @@ class PolicyEngine:
         for pattern in self._patterns(section, "process_names"):
             if fnmatch(name, pattern.lower()):
                 reasons.append(f"{label} process name match: {pattern}")
-                matched = True
+                strength = strength or "weak"
         for pattern in self._patterns(section, "executable_paths"):
             if fnmatch(executable, self._normalize_path(pattern)):
                 reasons.append(f"{label} executable path match: {pattern}")
-                matched = True
+                strength = "path"
         for pattern in self._patterns(section, "command_line_patterns"):
             if fnmatch(command_line, pattern.lower()) or pattern.lower() in command_line:
                 reasons.append(f"{label} command line match: {pattern}")
-                matched = True
+                strength = strength or "weak"
         if snapshot.executable_sha256:
             for digest in self._patterns(section, "hashes"):
                 if snapshot.executable_sha256.lower() == digest.lower():
                     reasons.append(f"{label} hash match: {digest}")
-                    matched = True
-        return matched
+                    strength = "hash"
+        return strength
 
     @staticmethod
     def _patterns(section: Mapping[str, Any], key: str) -> list[str]:

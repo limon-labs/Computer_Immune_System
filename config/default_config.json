@@ -5,7 +5,9 @@
     "connection_sample_limit": 256,
     "high_cpu_percent": 80.0,
     "high_memory_percent": 20.0,
-    "hash_executables": false
+    "hash_executables": false,
+    "open_file_sample_limit": 128,
+    "command_line_max_length": 4096
   },
   "detection": {
     "anomaly_contamination": 0.08,
@@ -39,7 +41,14 @@
     "dry_run": true,
     "isolate_score_threshold": 85,
     "terminate_score_threshold": 95,
-    "quarantine_directory": "quarantine"
+    "quarantine_directory": "quarantine",
+    "protect_current_process": true,
+    "protected_usernames": [
+      "root",
+      "system",
+      "local service",
+      "network service"
+    ]
   },
   "database": {
     "path": "data/threat_history.sqlite3"

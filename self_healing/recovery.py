@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,7 @@ class RecoveryManager:
         self.journal_path = Path(journal_path)
         self.journal_path.parent.mkdir(parents=True, exist_ok=True)
         self.dry_run = dry_run
+        self._ensure_private_file()
 
     def record(self, action: str, pid: int | None, process_name: str | None, **metadata: Any) -> RecoveryRecord:
         record = RecoveryRecord(
@@ -38,8 +40,7 @@ class RecoveryManager:
             process_name=process_name,
             metadata=metadata,
         )
-        with self.journal_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(asdict(record), sort_keys=True) + "\n")
+        self._append_private(json.dumps(asdict(record), sort_keys=True) + "\n")
         return record
 
     def latest(self, limit: int = 20) -> list[RecoveryRecord]:
@@ -48,8 +49,11 @@ class RecoveryManager:
         lines = self.journal_path.read_text(encoding="utf-8").splitlines()[-limit:]
         records: list[RecoveryRecord] = []
         for line in lines:
-            payload = json.loads(line)
-            records.append(RecoveryRecord(**payload))
+            try:
+                payload = json.loads(line)
+                records.append(RecoveryRecord(**payload))
+            except (json.JSONDecodeError, TypeError):
+                continue
         return records
 
     def rollback(self, record: RecoveryRecord) -> str:
@@ -71,3 +75,24 @@ class RecoveryManager:
         if record.action == "terminated":
             return "rollback_unavailable_process_terminated"
         return "rollback_not_required"
+
+    def _ensure_private_file(self) -> None:
+        if not self.journal_path.exists():
+            fd = os.open(self.journal_path, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
+            os.close(fd)
+        else:
+            try:
+                os.chmod(self.journal_path, 0o600)
+            except OSError:
+                pass
+
+    def _append_private(self, payload: str) -> None:
+        fd = os.open(self.journal_path, os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600)
+        try:
+            with os.fdopen(fd, "a", encoding="utf-8") as handle:
+                handle.write(payload)
+        finally:
+            try:
+                os.chmod(self.journal_path, 0o600)
+            except OSError:
+                pass

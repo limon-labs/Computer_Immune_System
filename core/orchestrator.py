@@ -12,6 +12,7 @@ from core.alert_system import AlertSystem
 from core.event_queue import SecurityEvent, SecurityEventQueue
 from core.policy_engine import PolicyEngine
 from core.rule_engine import RuleEngine
+from core.safety import enforce_response_dry_run
 from database.threat_history import ThreatHistoryStore
 from detection.anomaly_detector import AnomalyDetector
 from detection.heuristic_analysis import BehaviorAnalyzer
@@ -27,7 +28,8 @@ class ImmuneSystemOrchestrator:
     """Coordinates one-shot and continuous immune-system scans."""
 
     def __init__(self, config: Mapping[str, Any], logger: logging.Logger):
-        self.config = config
+        self.config = enforce_response_dry_run(config)
+        config = self.config
         self.logger = logger
         database = config.get("database", {}) if isinstance(config.get("database"), Mapping) else {}
         monitoring = config.get("monitoring", {}) if isinstance(config.get("monitoring"), Mapping) else {}
@@ -36,7 +38,11 @@ class ImmuneSystemOrchestrator:
         filesystem = config.get("filesystem", {}) if isinstance(config.get("filesystem"), Mapping) else {}
 
         self.poll_interval = float(monitoring.get("process_poll_interval_seconds", 5))
-        self.event_queue = SecurityEventQueue(maxsize=int(queue_config.get("maxsize", 10_000)))
+        self.event_queue = SecurityEventQueue(
+            maxsize=int(queue_config.get("maxsize", 10_000)),
+            drop_policy=str(queue_config.get("drop_policy", "drop_newest")),
+            block_timeout=float(queue_config.get("block_timeout_seconds", 0.25)),
+        )
         self.event_drain_limit = int(queue_config.get("drain_limit", 250))
         self.monitor = ProcessMonitor(config)
         self.realtime_monitor = RealTimeProcessMonitor(self.monitor, poll_interval=self.poll_interval)
@@ -46,6 +52,11 @@ class ImmuneSystemOrchestrator:
             self.event_queue,
             filesystem.get("watch_paths", []),
             recursive=bool(filesystem.get("recursive", True)),
+            create_missing=bool(filesystem.get("create_missing", False)),
+            allowed_event_types=filesystem.get("allowed_event_types"),
+            ignored_patterns=filesystem.get("ignored_patterns"),
+            max_events_per_second=int(filesystem.get("max_events_per_second", 500)),
+            coalesce_window_seconds=float(filesystem.get("coalesce_window_seconds", 0.25)),
         ) if filesystem.get("enabled", False) else None
         self.anomaly_detector = AnomalyDetector(config)
         self.behavior_analyzer = BehaviorAnalyzer(config)

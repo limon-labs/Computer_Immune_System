@@ -92,7 +92,9 @@
   },
   "event_queue": {
     "maxsize": 10000,
-    "drain_limit": 250
+    "drain_limit": 250,
+    "drop_policy": "drop_oldest",
+    "block_timeout_seconds": 0.25
   },
   "etw": {
     "enabled": false,
@@ -124,6 +126,16 @@
   "filesystem": {
     "enabled": false,
     "watch_paths": [],
-    "recursive": true
+    "recursive": true,
+    "create_missing": false,
+    "allowed_event_types": [
+      "created",
+      "modified",
+      "deleted",
+      "moved"
+    ],
+    "ignored_patterns": [],
+    "max_events_per_second": 500,
+    "coalesce_window_seconds": 0.25
   }
 }

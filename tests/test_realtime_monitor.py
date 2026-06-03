@@ -17,7 +17,7 @@ class FakeProcessMonitor:
 
 
 def test_realtime_monitor_emits_lifecycle_deltas():
-    monitor = RealTimeProcessMonitor(FakeProcessMonitor(), poll_interval=0)
+    monitor = RealTimeProcessMonitor(FakeProcessMonitor(), poll_interval=0.01, seed_baseline=False)
 
     first = monitor.poll_events()
     second = monitor.poll_events()

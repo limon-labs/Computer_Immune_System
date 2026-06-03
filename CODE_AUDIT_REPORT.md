@@ -13,6 +13,10 @@ Reviewed files:
 5. `monitor/file_monitor.py`
 6. `service_windows.py`
 
+## Remediation status
+
+Critical and High findings in this report were remediated in the follow-up Phase v2 remediation pass. See `PHASE_V2_REMEDIATION.md` for implementation details, tests, and remaining non-critical work.
+
 ## Executive summary
 
 Phase v2 establishes a useful event-driven foundation, but several production-impacting issues remain:

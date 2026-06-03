@@ -13,6 +13,7 @@ import platform
 from core.config import load_config
 from core.logging_config import configure_logging
 from core.orchestrator import ImmuneSystemOrchestrator
+from core.safety import enforce_response_dry_run
 
 
 SERVICE_NAME = "ComputerImmuneSystem"
@@ -31,7 +32,7 @@ def pywin32_available() -> bool:
 def run_service_foreground(config_path: str | None = None, max_iterations: int | None = None) -> None:
     """Run the service workload in the foreground for debugging."""
 
-    config = load_config(config_path)
+    config = enforce_response_dry_run(load_config(config_path))
     logger = configure_logging(config)
     logger.info("Starting %s in foreground mode", SERVICE_DISPLAY_NAME)
     ImmuneSystemOrchestrator(config, logger).run_event_loop(max_iterations=max_iterations)
@@ -71,7 +72,7 @@ def _build_service_class():  # pragma: no cover - exercised on Windows hosts wit
 
         def SvcDoRun(self) -> None:
             servicemanager.LogInfoMsg(f"{SERVICE_DISPLAY_NAME} starting")
-            config = load_config()
+            config = enforce_response_dry_run(load_config())
             logger = configure_logging(config)
             self.orchestrator = ImmuneSystemOrchestrator(config, logger)
             self.orchestrator.run_event_loop(stop_event=self._stop_requested)

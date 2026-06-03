@@ -81,10 +81,16 @@ Run continuously with periodic full scans:
 python main.py
 ```
 
-Run portable real-time process lifecycle monitoring:
+Run queue-driven real-time process and filesystem monitoring:
 
 ```bash
 python main.py --realtime
+```
+
+On Windows, dispatch the Windows Service wrapper after installing optional Windows dependencies:
+
+```bash
+python main.py --windows-service status
 ```
 
 Show recent threat history:
@@ -114,6 +120,18 @@ Example override:
   }
 }
 ```
+
+
+## Phase v2 real-time architecture
+
+Phase v2 adds a bounded `SecurityEventQueue` between telemetry collectors and detection. Process lifecycle events, filesystem events, and Windows ETW events are normalized as security events before the orchestrator evaluates relevant process snapshots. ETW and filesystem monitoring are disabled by default in `config/default_config.json`; enable them gradually while keeping `response.dry_run` set to `true`.
+
+- Process collector: emits `process.started`, `process.changed`, and `process.stopped`.
+- Filesystem collector: uses `watchdog` and emits `file.*` events for configured watch paths.
+- Windows ETW collector: validates platform and pywin32 availability, publishes normalized `etw.event` records, and provides a facade for Windows provider integration.
+- Windows Service wrapper: `service_windows.py` supports pywin32 service dispatch and foreground debugging.
+
+See [`MIGRATION_NOTES.md`](MIGRATION_NOTES.md) before enabling Phase v2 collectors.
 
 ## Detection model
 

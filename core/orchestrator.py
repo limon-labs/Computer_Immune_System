@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Mapping
+from dataclasses import asdict
+from typing import Any, Callable, Mapping
 
 from adaptive.threat_scoring import ThreatEvent, ThreatScorer
 from core.alert_system import AlertSystem
+from core.event_queue import SecurityEvent, SecurityEventQueue
 from core.policy_engine import PolicyEngine
 from core.rule_engine import RuleEngine
 from database.threat_history import ThreatHistoryStore
 from detection.anomaly_detector import AnomalyDetector
 from detection.heuristic_analysis import BehaviorAnalyzer
+from monitor.etw_monitor import WindowsETWCollector
+from monitor.file_monitor import FileSystemEventCollector
+from monitor.process_event_collector import ProcessEventCollector
 from monitor.process_monitor import ProcessMonitor, ProcessSnapshot
 from monitor.realtime_monitor import RealTimeProcessMonitor
 from self_healing.process_isolation import ProcessIsolationEngine
@@ -27,10 +32,21 @@ class ImmuneSystemOrchestrator:
         database = config.get("database", {}) if isinstance(config.get("database"), Mapping) else {}
         monitoring = config.get("monitoring", {}) if isinstance(config.get("monitoring"), Mapping) else {}
         response = config.get("response", {}) if isinstance(config.get("response"), Mapping) else {}
+        queue_config = config.get("event_queue", {}) if isinstance(config.get("event_queue"), Mapping) else {}
+        filesystem = config.get("filesystem", {}) if isinstance(config.get("filesystem"), Mapping) else {}
 
         self.poll_interval = float(monitoring.get("process_poll_interval_seconds", 5))
+        self.event_queue = SecurityEventQueue(maxsize=int(queue_config.get("maxsize", 10_000)))
+        self.event_drain_limit = int(queue_config.get("drain_limit", 250))
         self.monitor = ProcessMonitor(config)
         self.realtime_monitor = RealTimeProcessMonitor(self.monitor, poll_interval=self.poll_interval)
+        self.process_collector = ProcessEventCollector(self.realtime_monitor, self.event_queue)
+        self.etw_collector = WindowsETWCollector(self.event_queue, config)
+        self.file_collector = FileSystemEventCollector(
+            self.event_queue,
+            filesystem.get("watch_paths", []),
+            recursive=bool(filesystem.get("recursive", True)),
+        ) if filesystem.get("enabled", False) else None
         self.anomaly_detector = AnomalyDetector(config)
         self.behavior_analyzer = BehaviorAnalyzer(config)
         self.policy_engine = PolicyEngine(config)
@@ -73,13 +89,45 @@ class ImmuneSystemOrchestrator:
             self.scan_once()
             time.sleep(self.poll_interval)
 
+    def process_security_event(self, event: SecurityEvent) -> list[ThreatEvent]:
+        self.logger.debug("Processing security event type=%s source=%s", event.event_type, event.source)
+        if event.event_type in {"process.started", "process.changed"}:
+            snapshot_payload = event.payload.get("snapshot")
+            if isinstance(snapshot_payload, Mapping):
+                return self._evaluate_snapshots([ProcessSnapshot(**dict(snapshot_payload))])
+        return []
+
+    def drain_event_queue(self) -> list[ThreatEvent]:
+        detected: list[ThreatEvent] = []
+        for event in self.event_queue.drain(self.event_drain_limit):
+            detected.extend(self.process_security_event(event))
+        return detected
+
+    def start_collectors(self) -> None:
+        etw_status = self.etw_collector.start()
+        self.logger.info("ETW collector status: %s", etw_status)
+        if self.file_collector is not None:
+            self.file_collector.start()
+            self.logger.info("Filesystem collector started")
+
+    def stop_collectors(self) -> None:
+        if self.file_collector is not None:
+            self.file_collector.stop()
+
+    def run_event_loop(self, stop_event: Callable[[], bool] | None = None, max_iterations: int | None = None) -> None:
+        self.logger.info("Computer Immune System event loop started")
+        self.start_collectors()
+        iterations = 0
+        try:
+            while stop_event is None or not stop_event():
+                self.process_collector.poll_once()
+                self.drain_event_queue()
+                iterations += 1
+                if max_iterations is not None and iterations >= max_iterations:
+                    break
+                time.sleep(self.poll_interval)
+        finally:
+            self.stop_collectors()
+
     def run_realtime(self) -> None:
-        self.logger.info("Computer Immune System real-time monitoring started")
-        while True:
-            lifecycle_events = self.realtime_monitor.poll_events()
-            for lifecycle_event in lifecycle_events:
-                self.logger.debug("Process lifecycle event: %s pid=%s", lifecycle_event.event_type, lifecycle_event.pid)
-            snapshots = RealTimeProcessMonitor.interesting_snapshots(lifecycle_events)
-            if snapshots:
-                self._evaluate_snapshots(snapshots)
-            time.sleep(self.poll_interval)
+        self.run_event_loop()

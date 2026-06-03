@@ -60,3 +60,14 @@ This is still not production EDR software. It needs signed policy distribution, 
 - Add automatic rollback playbooks for service recovery, file restoration, firewall rule removal, and process resume.
 - Add safety constraints that require multiple independent signals before destructive actions.
 - Add formal allow/protect rules for OS-critical processes per platform.
+
+## Phase v2 security update
+
+Phase v2 introduces a bounded event queue and real-time collectors. This improves detection latency but adds new operational risks:
+
+- **Event flooding:** process and filesystem bursts can fill the queue. The queue now has max-size and drop accounting, but production deployments still need telemetry shedding policy and metrics export.
+- **ETW dependency and privilege drift:** ETW collection is Windows-only and depends on pywin32/provider availability. The collector reports explicit status instead of failing silently.
+- **Filesystem volume:** recursive watchdog monitoring can generate high volume; enable narrow watch paths first.
+- **Service control:** the Windows Service wrapper keeps response dry-run by default and delegates stop handling through the orchestrator event loop. Production service hardening still requires signed binaries, ACL-protected directories, and tamper protection.
+
+Response actions remain dry-run by default. Phase v2 should be validated in observe-only mode before enabling any containment.

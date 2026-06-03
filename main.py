@@ -16,7 +16,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", help="Path to JSON configuration override")
     parser.add_argument("--once", action="store_true", help="Run one process scan and exit")
     parser.add_argument("--history", type=int, metavar="N", help="Print the N most recent stored threats")
-    parser.add_argument("--realtime", action="store_true", help="Run portable real-time process lifecycle monitoring")
+    parser.add_argument("--realtime", action="store_true", help="Run queue-driven real-time process and file monitoring")
+    parser.add_argument("--windows-service", nargs="*", metavar="SERVICE_ARG", help="Dispatch the Windows Service wrapper when running on Windows")
     return parser
 
 
@@ -26,6 +27,11 @@ def main() -> int:
     logger = configure_logging(config)
     orchestrator = ImmuneSystemOrchestrator(config, logger)
 
+    if args.windows_service is not None:
+        from service_windows import install_or_dispatch
+
+        print(install_or_dispatch(args.windows_service))
+        return 0
     if args.history:
         print(json.dumps(orchestrator.history.recent_threats(args.history), indent=2))
         return 0

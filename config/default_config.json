@@ -89,5 +89,41 @@
   },
   "recovery": {
     "journal_path": "data/recovery_journal.jsonl"
+  },
+  "event_queue": {
+    "maxsize": 10000,
+    "drain_limit": 250
+  },
+  "etw": {
+    "enabled": false,
+    "providers": [
+      {
+        "name": "Microsoft-Windows-Kernel-Process",
+        "event_types": [
+          "process_start",
+          "process_stop",
+          "image_load"
+        ]
+      },
+      {
+        "name": "Microsoft-Windows-Kernel-Network",
+        "event_types": [
+          "connection",
+          "dns"
+        ]
+      },
+      {
+        "name": "Microsoft-Windows-PowerShell",
+        "event_types": [
+          "script_block",
+          "module"
+        ]
+      }
+    ]
+  },
+  "filesystem": {
+    "enabled": false,
+    "watch_paths": [],
+    "recursive": true
   }
 }

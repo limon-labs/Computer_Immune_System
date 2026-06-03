@@ -1,0 +1,4 @@
+psutil
+watchdog
+scikit-learn
+requests

@@ -1,0 +1,84 @@
+{
+  "monitoring": {
+    "process_poll_interval_seconds": 5,
+    "max_processes_per_scan": 1000,
+    "connection_sample_limit": 256,
+    "high_cpu_percent": 80.0,
+    "high_memory_percent": 20.0,
+    "hash_executables": false
+  },
+  "detection": {
+    "anomaly_contamination": 0.08,
+    "minimum_training_samples": 8,
+    "suspicious_names": [
+      "mimikatz",
+      "nc",
+      "netcat",
+      "cryptominer",
+      "powersploit"
+    ],
+    "suspicious_cmdline_patterns": [
+      "-enc",
+      "base64",
+      "/dev/tcp",
+      "Invoke-Expression",
+      "curl | sh",
+      "wget | sh"
+    ],
+    "dangerous_ports": [
+      4444,
+      5555,
+      6666,
+      1337,
+      31337
+    ],
+    "max_baseline_samples": 2048,
+    "retrain_every_samples": 25
+  },
+  "response": {
+    "dry_run": true,
+    "isolate_score_threshold": 85,
+    "terminate_score_threshold": 95,
+    "quarantine_directory": "quarantine"
+  },
+  "database": {
+    "path": "data/threat_history.sqlite3"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/immune_system.log"
+  },
+  "policy": {
+    "allowlist": {
+      "process_names": [
+        "python",
+        "python3",
+        "pytest"
+      ],
+      "executable_paths": [],
+      "command_line_patterns": []
+    },
+    "blocklist": {
+      "process_names": [],
+      "executable_paths": [],
+      "command_line_patterns": [],
+      "hashes": []
+    },
+    "protected": {
+      "process_names": [
+        "systemd",
+        "launchd",
+        "wininit.exe",
+        "csrss.exe",
+        "services.exe",
+        "lsass.exe"
+      ],
+      "executable_paths": []
+    },
+    "allowlist_score_reduction": 30,
+    "blocklist_score_floor": 95
+  },
+  "recovery": {
+    "journal_path": "data/recovery_journal.jsonl"
+  }
+}

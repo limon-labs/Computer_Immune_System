@@ -2,3 +2,5 @@ psutil
 watchdog
 scikit-learn
 requests
+
+pytest

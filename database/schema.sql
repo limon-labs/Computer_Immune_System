@@ -1,0 +1,118 @@
+CREATE TABLE IF NOT EXISTS threats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_at TEXT NOT NULL,
+    pid INTEGER,
+    process_name TEXT,
+    executable TEXT,
+    command_line TEXT,
+    create_time REAL,
+    anomaly_score REAL NOT NULL,
+    behavior_score REAL NOT NULL,
+    file_reputation_score REAL NOT NULL DEFAULT 0,
+    threat_score REAL NOT NULL,
+    severity TEXT NOT NULL,
+    policy_action TEXT NOT NULL DEFAULT 'monitor',
+    reasons TEXT NOT NULL,
+    action TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_threats_observed_at ON threats(observed_at);
+CREATE INDEX IF NOT EXISTS idx_threats_pid ON threats(pid);
+CREATE INDEX IF NOT EXISTS idx_threats_severity ON threats(severity);
+
+CREATE TABLE IF NOT EXISTS registry_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_at TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    key_path TEXT NOT NULL,
+    value_name TEXT NOT NULL,
+    value_data TEXT,
+    hive TEXT,
+    payload TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_registry_events_observed_at ON registry_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_registry_events_key_value ON registry_events(key_path, value_name);
+
+CREATE TABLE IF NOT EXISTS network_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_at TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    pid INTEGER,
+    local_address TEXT,
+    local_port INTEGER,
+    remote_address TEXT,
+    remote_port INTEGER,
+    status TEXT,
+    suspicious_port INTEGER NOT NULL DEFAULT 0,
+    payload TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_network_events_observed_at ON network_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_network_events_pid ON network_events(pid);
+CREATE INDEX IF NOT EXISTS idx_network_events_remote ON network_events(remote_address, remote_port);
+
+CREATE TABLE IF NOT EXISTS correlated_incidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_at TEXT NOT NULL,
+    incident_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    score_boost REAL NOT NULL,
+    involved_pids TEXT NOT NULL,
+    event_types TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    evidence TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_correlated_incidents_observed_at ON correlated_incidents(observed_at);
+CREATE INDEX IF NOT EXISTS idx_correlated_incidents_type ON correlated_incidents(incident_type);
+CREATE INDEX IF NOT EXISTS idx_correlated_incidents_severity ON correlated_incidents(severity);
+
+CREATE TABLE IF NOT EXISTS file_inventory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    normalized_path TEXT NOT NULL UNIQUE,
+    file_path TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    creation_time REAL NOT NULL,
+    modification_time REAL NOT NULL,
+    sha256 TEXT,
+    signature_status TEXT NOT NULL DEFAULT 'unknown',
+    first_observed_at TEXT NOT NULL,
+    last_observed_at TEXT NOT NULL,
+    last_pid INTEGER,
+    process_create_time REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_inventory_sha256 ON file_inventory(sha256);
+CREATE INDEX IF NOT EXISTS idx_file_inventory_last_observed ON file_inventory(last_observed_at);
+
+CREATE TABLE IF NOT EXISTS file_hash_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    normalized_path TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    sha256 TEXT,
+    previous_sha256 TEXT,
+    observed_at TEXT NOT NULL,
+    change_type TEXT NOT NULL,
+    pid INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_hash_history_path ON file_hash_history(normalized_path, observed_at);
+CREATE INDEX IF NOT EXISTS idx_file_hash_history_sha256 ON file_hash_history(sha256);
+
+CREATE TABLE IF NOT EXISTS file_reputation_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    observed_at TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    sha256 TEXT,
+    pid INTEGER,
+    file_reputation_score REAL NOT NULL,
+    integrity_changed INTEGER NOT NULL DEFAULT 0,
+    reasons TEXT NOT NULL,
+    payload TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_reputation_observed ON file_reputation_events(observed_at);
+CREATE INDEX IF NOT EXISTS idx_file_reputation_path ON file_reputation_events(file_path);
+CREATE INDEX IF NOT EXISTS idx_file_reputation_score ON file_reputation_events(file_reputation_score);

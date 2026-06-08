@@ -2,3 +2,7 @@ psutil
 watchdog
 scikit-learn
 requests
+
+pytest
+
+pywin32; platform_system == "Windows"

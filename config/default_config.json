@@ -1,0 +1,175 @@
+{
+  "monitoring": {
+    "process_poll_interval_seconds": 5,
+    "max_processes_per_scan": 1000,
+    "connection_sample_limit": 256,
+    "high_cpu_percent": 80.0,
+    "high_memory_percent": 20.0,
+    "hash_executables": false,
+    "open_file_sample_limit": 128,
+    "command_line_max_length": 4096
+  },
+  "detection": {
+    "anomaly_contamination": 0.08,
+    "minimum_training_samples": 8,
+    "suspicious_names": [
+      "mimikatz",
+      "nc",
+      "netcat",
+      "cryptominer",
+      "powersploit"
+    ],
+    "suspicious_cmdline_patterns": [
+      "-enc",
+      "base64",
+      "/dev/tcp",
+      "Invoke-Expression",
+      "curl | sh",
+      "wget | sh"
+    ],
+    "dangerous_ports": [
+      4444,
+      5555,
+      6666,
+      1337,
+      31337
+    ],
+    "max_baseline_samples": 2048,
+    "retrain_every_samples": 25
+  },
+  "response": {
+    "dry_run": true,
+    "isolate_score_threshold": 85,
+    "terminate_score_threshold": 95,
+    "quarantine_directory": "quarantine",
+    "protect_current_process": true,
+    "protected_usernames": [
+      "root",
+      "system",
+      "local service",
+      "network service"
+    ]
+  },
+  "database": {
+    "path": "data/threat_history.sqlite3"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/immune_system.log"
+  },
+  "policy": {
+    "allowlist": {
+      "process_names": [
+        "python",
+        "python3",
+        "pytest"
+      ],
+      "executable_paths": [],
+      "command_line_patterns": []
+    },
+    "blocklist": {
+      "process_names": [],
+      "executable_paths": [],
+      "command_line_patterns": [],
+      "hashes": []
+    },
+    "protected": {
+      "process_names": [
+        "systemd",
+        "launchd",
+        "wininit.exe",
+        "csrss.exe",
+        "services.exe",
+        "lsass.exe"
+      ],
+      "executable_paths": []
+    },
+    "allowlist_score_reduction": 30,
+    "blocklist_score_floor": 95
+  },
+  "recovery": {
+    "journal_path": "data/recovery_journal.jsonl"
+  },
+  "event_queue": {
+    "maxsize": 10000,
+    "drain_limit": 250,
+    "drop_policy": "drop_oldest",
+    "block_timeout_seconds": 0.25
+  },
+  "etw": {
+    "enabled": false,
+    "providers": [
+      {
+        "name": "Microsoft-Windows-Kernel-Process",
+        "event_types": [
+          "process_start",
+          "process_stop",
+          "image_load"
+        ]
+      },
+      {
+        "name": "Microsoft-Windows-Kernel-Network",
+        "event_types": [
+          "connection",
+          "dns"
+        ]
+      },
+      {
+        "name": "Microsoft-Windows-PowerShell",
+        "event_types": [
+          "script_block",
+          "module"
+        ]
+      }
+    ]
+  },
+  "filesystem": {
+    "enabled": false,
+    "watch_paths": [],
+    "recursive": true,
+    "create_missing": false,
+    "allowed_event_types": [
+      "created",
+      "modified",
+      "deleted",
+      "moved"
+    ],
+    "ignored_patterns": [],
+    "max_events_per_second": 500,
+    "coalesce_window_seconds": 0.25
+  },
+  "registry": {
+    "enabled": false,
+    "poll_interval_seconds": 5
+  },
+  "network": {
+    "enabled": false,
+    "poll_interval_seconds": 5,
+    "seed_baseline": true,
+    "dangerous_ports": [
+      4444,
+      5555,
+      6666,
+      1337,
+      31337
+    ]
+  },
+  "correlation": {
+    "window_seconds": 300
+  },
+  "file_monitor": {
+    "enabled": true,
+    "hash_algorithm": "sha256",
+    "track_hash_changes": true,
+    "monitor_temp_execution": true,
+    "suspicious_filename_patterns": [
+      "*.scr",
+      "*.com",
+      "*crack*",
+      "*keygen*",
+      "*payload*",
+      "*reverse_shell*",
+      "*mimikatz*"
+    ]
+  }
+}

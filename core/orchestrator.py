@@ -8,6 +8,7 @@ from dataclasses import asdict
 from typing import Any, Callable, Mapping
 
 from adaptive.threat_scoring import ThreatEvent, ThreatScorer
+from adaptive_intelligence.digital_dna import DigitalDNAEngine, DigitalDNAStore
 from core.alert_system import AlertSystem
 from core.correlation_engine import CorrelatedIncident, CorrelationEngine
 from core.event_queue import SecurityEvent, SecurityEventQueue
@@ -45,6 +46,8 @@ class ImmuneSystemOrchestrator:
         registry = config.get("registry", {}) if isinstance(config.get("registry"), Mapping) else {}
         network = config.get("network", {}) if isinstance(config.get("network"), Mapping) else {}
         correlation = config.get("correlation", {}) if isinstance(config.get("correlation"), Mapping) else {}
+        adaptive_intelligence = config.get("adaptive_intelligence", {}) if isinstance(config.get("adaptive_intelligence"), Mapping) else {}
+        digital_dna = adaptive_intelligence.get("digital_dna", {}) if isinstance(adaptive_intelligence.get("digital_dna"), Mapping) else {}
 
         self.poll_interval = float(monitoring.get("process_poll_interval_seconds", 5))
         self.event_queue = SecurityEventQueue(
@@ -88,6 +91,10 @@ class ImmuneSystemOrchestrator:
         self.alerts = AlertSystem(logger)
         self.history = ThreatHistoryStore(database.get("path", "data/threat_history.sqlite3"))
         self.immune_memory = ImmuneMemoryStore(database.get("path", "data/threat_history.sqlite3"))
+        self.digital_dna_engine = (
+            DigitalDNAEngine(DigitalDNAStore(database.get("path", "data/threat_history.sqlite3"), cache_size=int(digital_dna.get("cache_size", 128))))
+            if digital_dna.get("enabled", True) else None
+        )
         self.isolation = ProcessIsolationEngine(config, logger=logger)
 
     def scan_once(self) -> list[ThreatEvent]:
@@ -113,6 +120,7 @@ class ImmuneSystemOrchestrator:
                 file_reputation_score=file_finding.score,
                 signal_reasons=file_finding.reasons,
             )
+            self._update_digital_dna({**asdict(snapshot), "threat_score": event.threat_score, "file_reputation_score": event.file_reputation_score})
             decision = self.rule_engine.decide(event)
             if event.threat_score < 20 and policy.action in {"monitor", "allow", "protected"}:
                 trusted_baseline_candidates.append(snapshot)
@@ -149,6 +157,9 @@ class ImmuneSystemOrchestrator:
             self.process_security_event(derived_event)
         elif event.event_type in {"file.reputation", "file.integrity_change"}:
             self.history.record_file_reputation_event(event)
+
+        if event.event_type.startswith(("file.", "network.", "registry.", "process.")):
+            self._update_digital_dna(event.payload)
 
         signal = self.threat_scorer.score_security_event(event)
         if signal is not None and self.rule_engine.decide_signal(signal).should_alert:
@@ -199,9 +210,19 @@ class ImmuneSystemOrchestrator:
         )
         return derived_event, finding
 
+    def _update_digital_dna(self, payload: Mapping[str, Any]) -> None:
+        if self.digital_dna_engine is None:
+            return
+        if payload.get("snapshot") and isinstance(payload.get("snapshot"), Mapping):
+            payload = payload["snapshot"]
+        if payload.get("executable") or payload.get("file_path") or payload.get("pid"):
+            self.digital_dna_engine.update_dna(payload)
+
     def _handle_correlated_incident(self, incident: CorrelatedIncident) -> None:
         source_incident_id = self.history.record_correlated_incident(incident)
         self.immune_memory.remember_incident(incident, source_incident_id=source_incident_id)
+        if self.digital_dna_engine is not None:
+            self.digital_dna_engine.update_from_incident(incident)
         signal = self.threat_scorer.score_correlated_incident(incident)
         decision = self.rule_engine.decide_signal(signal)
         if decision.should_alert:

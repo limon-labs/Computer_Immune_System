@@ -178,6 +178,12 @@
     "repeated_pattern_threshold": 2,
     "high_confidence_threshold": 75.0,
     "allow_policy_recommendations": true,
-    "auto_apply_recommendations": false
+    "auto_apply_recommendations": false,
+    "digital_dna": {
+      "enabled": true,
+      "cache_size": 128,
+      "similarity_threshold": 70.0,
+      "store_similarity_explanations": true
+    }
   }
 }

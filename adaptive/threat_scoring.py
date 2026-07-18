@@ -107,6 +107,16 @@ class ThreatScorer:
                 pid=int(pid) if isinstance(pid, int) else None,
                 payload=dict(event.payload),
             )
+        if event.event_type.startswith("digital_dna."):
+            score = float(event.payload.get("risk", event.payload.get("similarity_score", 0.0)) or 0.0)
+            return ThreatSignal(
+                observed_at=event.observed_at,
+                signal_type=event.event_type,
+                threat_score=max(0.0, min(100.0, score)),
+                severity=self._severity(score),
+                reasons=list(event.payload.get("reasons", ["digital DNA signal"])),
+                payload=dict(event.payload),
+            )
         if event.event_type == "network.connection_opened" and event.payload.get("suspicious_port"):
             score = 40.0
             pid = event.payload.get("pid")

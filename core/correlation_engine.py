@@ -41,6 +41,8 @@ class CorrelationEngine:
                 incidents.append(self._network_suspicious_port_incident(event))
             if event.event_type == "file.integrity_change":
                 incidents.append(self._file_integrity_incident(event))
+            if event.event_type == "digital_dna.high_similarity":
+                incidents.append(self._digital_dna_similarity_incident(event))
             chain = self._process_registry_network_chain(event)
             if chain is not None:
                 incidents.append(chain)
@@ -73,6 +75,17 @@ class CorrelationEngine:
             evidence={"network_event": dict(event.payload)},
         )
 
+
+    def _digital_dna_similarity_incident(self, event: SecurityEvent) -> CorrelatedIncident:
+        return CorrelatedIncident(
+            observed_at=datetime.now(timezone.utc).isoformat(),
+            incident_type="digital_dna_similarity",
+            severity="medium",
+            score_boost=float(event.payload.get("similarity_score", 0.0)) / 2.0,
+            event_types=[event.event_type],
+            summary="Digital DNA resembles a known behavioral identity",
+            evidence={"digital_dna_event": dict(event.payload)},
+        )
 
     def _file_integrity_incident(self, event: SecurityEvent) -> CorrelatedIncident:
         pid = event.payload.get("pid")

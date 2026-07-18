@@ -181,6 +181,21 @@ flowchart TD
 **Complexity:** Medium-High
 **Primary risks:** feedback poisoning, overfitting to local incidents, false-confidence amplification, policy drift without governance.
 
+
+### Digital DNA engine
+
+**Goal:** maintain long-term behavioral identities for executables and processes so adaptive intelligence can reason about lineage, behavior, network, filesystem, registry, and security evolution over time.
+
+- Add `adaptive_intelligence.digital_dna` with separate engine, models, storage, similarity, and evolution modules.
+- Persist current DNA, immutable version history, and explainable comparison results in additive SQLite tables.
+- Evolve DNA incrementally from process snapshots, file reputation, network/registry events, and correlated incidents without re-hashing files when hashes are already available.
+- Expose `generate_dna()`, `update_dna()`, `compare_dna()`, `find_similar_dna()`, `merge_behavior()`, and `get_dna_history()` for future detectors and analyst workflows.
+- Keep recommendations and DNA similarity non-enforcing until governed by signed policy and analyst approval.
+
+**Priority:** High
+**Complexity:** Medium-High
+**Primary risks:** stale identity merges, adversarial behavior shaping, excessive local history growth, over-trusting similarity without analyst context.
+
 ### Secure update system
 
 **Goal:** safely deliver agent binaries, drivers, policies, models, and threat intelligence.
@@ -257,7 +272,7 @@ flowchart TD
 | v3 | ETW telemetry foundation | Critical | High | ETW process/image/network/DNS/PowerShell consumers, normalized event schema, process ancestry graph, event queue metrics | Detects process starts and script activity in near real time with measured event loss |
 | v4 | Policy and signer enforcement | Critical | Medium-High | Authenticode verification, publisher policy, signed policy bundles, policy linting, response-suppressing allowlist anchors | Unsigned/mis-signed binaries affect scoring; unsafe policies are rejected before deployment |
 | v5 | Filesystem and ransomware defense | High | High | Minifilter prototype, user-mode fallback, file reputation, ransomware burst heuristics, transactional quarantine/restore | Simulated ransomware is detected and contained in lab without data loss |
-| v6 | Adaptive immune intelligence + network containment | High | High | Local adaptive_intelligence package, immune-memory similarity, analyst feedback, explainable policy recommendations, WFP process-aware firewall integration, DNS blocking, quarantine network profile, rollback journal | Endpoint can learn from repeated attack patterns, recommend policy changes without auto-applying them, and isolate suspicious processes while preserving management connectivity |
+| v6 | Adaptive immune intelligence, Digital DNA + network containment | High | High | Local adaptive_intelligence package, Digital DNA identities, immune-memory similarity, analyst feedback, explainable policy recommendations, WFP process-aware firewall integration, DNS blocking, quarantine network profile, rollback journal | Endpoint can evolve behavioral identities, learn from repeated attack patterns, recommend policy changes without auto-applying them, and isolate suspicious processes while preserving management connectivity |
 | v7 | Secure updates and threat intelligence | Critical | High | Signed update manifests, staged rollout rings, signed TI feed bundles, offline cache, rollback | Agents update safely across pilot fleet and consume signed feeds with TTLs |
 | v8 | Memory inspection and advanced detections | High | Very High | VAD/RWX/module anomaly scanner, YARA memory rules, injection heuristics, evidence capture controls | Common injection and reflective-loading simulations generate high-confidence alerts |
 | v9 | Cloud management console | High | Very High | Multi-tenant console, RBAC, endpoint inventory, policy deployment, case management, SIEM/SOAR APIs | Operators can manage a pilot fleet and investigate alerts centrally |
@@ -276,13 +291,14 @@ flowchart TD
 | Memory inspection | High | Very High | Powerful but complex and sensitive to stability/privacy constraints |
 | Threat intelligence feeds | High | Medium-High | Improves detection quickly if signing and FP workflows exist |
 | Adaptive immune intelligence | High | Medium-High | Converts local immune memory into recurrence-aware triage and analyst-reviewed policy recommendations |
+| Digital DNA engine | High | Medium-High | Builds persistent executable/process behavioral identities for similarity, lineage, and evolution-aware detection |
 | Cloud console and fleet management | High | Very High | Required for enterprise adoption and multi-endpoint workflows |
 
 ## Dependencies and sequencing
 
 1. **Do first:** service architecture, schema validation, signed config/policy, structured telemetry schema.
 2. **Then:** ETW telemetry, signature verification, process ancestry, improved local detections.
-3. **Then:** immune memory, adaptive intelligence, analyst feedback, and recommendation review workflows.
+3. **Then:** immune memory, Digital DNA, adaptive intelligence, analyst feedback, and recommendation review workflows.
 4. **Then:** secure update system and signed threat intelligence feeds.
 5. **Then:** filesystem and network enforcement with rollback.
 6. **Then:** memory inspection and kernel driver expansion after fuzzing and performance harnesses exist.

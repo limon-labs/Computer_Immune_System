@@ -151,3 +151,50 @@ CREATE TABLE IF NOT EXISTS behavior_fingerprints (
 
 CREATE INDEX IF NOT EXISTS idx_behavior_fingerprints_hash ON behavior_fingerprints(fingerprint_hash);
 CREATE INDEX IF NOT EXISTS idx_behavior_fingerprints_memory_id ON behavior_fingerprints(memory_id);
+
+CREATE TABLE IF NOT EXISTS digital_dna (
+    dna_id TEXT PRIMARY KEY,
+    version INTEGER NOT NULL,
+    identity TEXT NOT NULL,
+    process_lineage TEXT NOT NULL,
+    behavior_profile TEXT NOT NULL,
+    network_profile TEXT NOT NULL,
+    filesystem_profile TEXT NOT NULL,
+    registry_profile TEXT NOT NULL,
+    security_profile TEXT NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    evolution_timestamp TEXT NOT NULL,
+    change_history TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_digital_dna_last_seen ON digital_dna(last_seen);
+CREATE INDEX IF NOT EXISTS idx_digital_dna_confidence ON digital_dna(confidence);
+
+CREATE TABLE IF NOT EXISTS digital_dna_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dna_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    evolved_at TEXT NOT NULL,
+    dna_snapshot TEXT NOT NULL,
+    change_summary TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_digital_dna_history_dna ON digital_dna_history(dna_id, version);
+CREATE INDEX IF NOT EXISTS idx_digital_dna_history_evolved ON digital_dna_history(evolved_at);
+
+CREATE TABLE IF NOT EXISTS digital_dna_similarity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    left_dna_id TEXT NOT NULL,
+    right_dna_id TEXT NOT NULL,
+    similarity_score REAL NOT NULL,
+    confidence REAL NOT NULL,
+    matched_features TEXT NOT NULL,
+    different_features TEXT NOT NULL,
+    evolution_history TEXT NOT NULL,
+    compared_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_digital_dna_similarity_pair ON digital_dna_similarity(left_dna_id, right_dna_id);
+CREATE INDEX IF NOT EXISTS idx_digital_dna_similarity_score ON digital_dna_similarity(similarity_score);

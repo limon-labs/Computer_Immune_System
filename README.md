@@ -68,7 +68,7 @@ sequenceDiagram
 - `monitor/` - process, network, file, and registry monitoring helpers.
 - `detection/` - anomaly detection, behavior analysis, signatures, and model compatibility wrappers.
 - `adaptive/` - threat scoring and adaptive helper utilities.
-- `adaptive_intelligence/` - Phase 6 immune-memory learning, feedback, assessments, and non-mutating policy recommendations.
+- `adaptive_intelligence/` - Phase 6 immune-memory learning, feedback, assessments, non-mutating policy recommendations, and Phase 6.1 Digital DNA.
 - `database/` - SQLite schema, threat-history repository, and immune-memory API.
 - `response/` - response primitives such as process termination, quarantine, and network blocking abstractions.
 - `self_healing/` - isolation, file repair, service restart, and snapshot restore helpers.
@@ -234,6 +234,49 @@ Phase 6 is implemented as a new additive `adaptive_intelligence` package. It doe
 - `AdaptiveIntelligenceEngine` compares candidate incidents against immune memory and returns adaptive score, confidence, recurrence context, top matches, recommendations, and reasons.
 
 Default configuration keeps Phase 6 non-enforcing: `adaptive_intelligence.enabled` is `false`, recommendations are allowed, and `auto_apply_recommendations` is `false`.
+
+## Phase 6.1 Digital DNA engine
+
+Phase 6.1 adds `adaptive_intelligence.digital_dna`, a persistent behavioral identity system for observed executables and processes. It is additive and does not remove or change Phase 1-6 APIs.
+
+Digital DNA contains:
+
+- **Identity:** executable path, SHA-256 when already available, publisher/signature status, file reputation, first seen, and last seen.
+- **Process lineage:** parent PID, parent executable/name, child relationship placeholders, and ancestry.
+- **Behavior profile:** typical CPU, memory, thread count, handle/open-file count, lifetime, and startup behavior.
+- **Network profile:** common remote ports, connection frequency, and protocol usage.
+- **Filesystem profile:** frequently accessed directories, temporary file usage, and modification behavior.
+- **Registry profile:** startup persistence and registry modification patterns.
+- **Security profile:** threat history, previous incidents, confidence, recurrence, and risk history.
+
+The public API is exposed by `DigitalDNAEngine`:
+
+```python
+from adaptive_intelligence.digital_dna import DigitalDNAEngine, DigitalDNAStore
+
+engine = DigitalDNAEngine(DigitalDNAStore("data/threat_history.sqlite3"))
+dna = engine.generate_dna(observation)
+evolved = engine.update_dna(observation)
+comparison = engine.compare_dna(dna, evolved)
+matches = engine.find_similar_dna(dna)
+history = engine.get_dna_history(dna.dna_id)
+```
+
+DNA evolution is versioned. Current DNA is stored in `digital_dna`, historical versions in `digital_dna_history`, and structured comparison explanations in `digital_dna_similarity`. Comparisons return JSON with matched features, different features, similarity score, confidence, and evolution history. The engine uses a small LRU cache and reuses existing hashes from telemetry rather than re-reading executable files.
+
+Default configuration enables DNA generation while keeping it non-enforcing:
+
+```json
+{
+  "adaptive_intelligence": {
+    "digital_dna": {
+      "enabled": true,
+      "cache_size": 128,
+      "similarity_threshold": 70.0
+    }
+  }
+}
+```
 
 ## Detection model
 

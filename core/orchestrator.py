@@ -15,6 +15,7 @@ from core.policy_engine import PolicyEngine
 from core.rule_engine import RuleEngine
 from core.safety import enforce_response_dry_run
 from database.threat_history import ThreatHistoryStore
+from database.immune_memory import ImmuneMemoryStore
 from detection.anomaly_detector import AnomalyDetector
 from detection.heuristic_analysis import BehaviorAnalyzer
 from detection.file_reputation import FileReputationAnalyzer, FileReputationFinding
@@ -86,6 +87,7 @@ class ImmuneSystemOrchestrator:
         self.rule_engine = RuleEngine(response_threshold=float(response.get("isolate_score_threshold", 85)))
         self.alerts = AlertSystem(logger)
         self.history = ThreatHistoryStore(database.get("path", "data/threat_history.sqlite3"))
+        self.immune_memory = ImmuneMemoryStore(database.get("path", "data/threat_history.sqlite3"))
         self.isolation = ProcessIsolationEngine(config, logger=logger)
 
     def scan_once(self) -> list[ThreatEvent]:
@@ -198,7 +200,8 @@ class ImmuneSystemOrchestrator:
         return derived_event, finding
 
     def _handle_correlated_incident(self, incident: CorrelatedIncident) -> None:
-        self.history.record_correlated_incident(incident)
+        source_incident_id = self.history.record_correlated_incident(incident)
+        self.immune_memory.remember_incident(incident, source_incident_id=source_incident_id)
         signal = self.threat_scorer.score_correlated_incident(incident)
         decision = self.rule_engine.decide_signal(signal)
         if decision.should_alert:

@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS threats (
     executable TEXT,
     command_line TEXT,
     create_time REAL,
+    parent_pid INTEGER,
+    parent_name TEXT,
     anomaly_score REAL NOT NULL,
     behavior_score REAL NOT NULL,
     file_reputation_score REAL NOT NULL DEFAULT 0,
@@ -116,3 +118,36 @@ CREATE TABLE IF NOT EXISTS file_reputation_events (
 CREATE INDEX IF NOT EXISTS idx_file_reputation_observed ON file_reputation_events(observed_at);
 CREATE INDEX IF NOT EXISTS idx_file_reputation_path ON file_reputation_events(file_path);
 CREATE INDEX IF NOT EXISTS idx_file_reputation_score ON file_reputation_events(file_reputation_score);
+
+CREATE TABLE IF NOT EXISTS immune_memory_incidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_incident_id INTEGER,
+    observed_at TEXT NOT NULL,
+    incident_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    recurrence_score REAL NOT NULL,
+    pattern_key TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    attack_graph TEXT NOT NULL,
+    timeline TEXT NOT NULL,
+    evidence TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_immune_memory_observed_at ON immune_memory_incidents(observed_at);
+CREATE INDEX IF NOT EXISTS idx_immune_memory_pattern ON immune_memory_incidents(pattern_key);
+CREATE INDEX IF NOT EXISTS idx_immune_memory_type ON immune_memory_incidents(incident_type);
+
+CREATE TABLE IF NOT EXISTS behavior_fingerprints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memory_id INTEGER NOT NULL,
+    fingerprint_hash TEXT NOT NULL,
+    feature_count INTEGER NOT NULL,
+    features TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(memory_id) REFERENCES immune_memory_incidents(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_behavior_fingerprints_hash ON behavior_fingerprints(fingerprint_hash);
+CREATE INDEX IF NOT EXISTS idx_behavior_fingerprints_memory_id ON behavior_fingerprints(memory_id);

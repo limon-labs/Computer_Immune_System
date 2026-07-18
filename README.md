@@ -22,6 +22,7 @@ flowchart TD
     FileInventory --> Queue
     Queue --> FileRep[File Reputation + Integrity Engine]
     Queue --> Correlation[CorrelationEngine]
+    Correlation --> Memory[ImmuneMemoryStore]
     Snapshots --> ML[IsolationForest AnomalyDetector]
     Snapshots --> Behavior[BehaviorAnalyzer]
     ML --> Scoring[ThreatScorer]
@@ -29,8 +30,9 @@ flowchart TD
     FileRep --> Scoring
     FileRep --> Correlation
     Correlation --> Scoring
+    Memory --> DB
     Scoring --> Rules[RuleEngine]
-    Rules -->|record| DB[(SQLite Threat, File Inventory, Hash History, and Incident History)]
+    Rules -->|record| DB[(SQLite Threat, Memory, File Inventory, Hash History, and Incident History)]
     Rules -->|alert| Alerts[AlertSystem]
     Rules -->|respond| Healing[ProcessIsolationEngine]
     Healing --> Suspend[Suspend Process]
@@ -66,7 +68,7 @@ sequenceDiagram
 - `monitor/` - process, network, file, and registry monitoring helpers.
 - `detection/` - anomaly detection, behavior analysis, signatures, and model compatibility wrappers.
 - `adaptive/` - threat scoring and adaptive helper utilities.
-- `database/` - SQLite schema and threat-history repository.
+- `database/` - SQLite schema, threat-history repository, and immune-memory API.
 - `response/` - response primitives such as process termination, quarantine, and network blocking abstractions.
 - `self_healing/` - isolation, file repair, service restart, and snapshot restore helpers.
 - `tests/` - unit tests for configuration, detection, scoring, database, and response behavior.
@@ -195,6 +197,31 @@ Default configuration:
 
 Hashing has an I/O cost. Executable paths are deduplicated within each process scan, and the collector rejects observations when a file changes while it is being hashed. Existing override files do not need a `file_monitor` section; direct legacy configurations without it leave Phase 4 disabled. Existing SQLite databases are upgraded in place with `file_inventory`, `file_hash_history`, and `file_reputation_events`.
 
+## Phase 5 immune memory engine
+
+Phase 5 adds long-term threat memory on top of transient event storage. Each correlated incident is remembered as a durable attack pattern with:
+
+- an ordered attack timeline across process, file, registry, and network events;
+- an `AttackGraph` containing incident, event, process, file, registry, and network nodes;
+- parent-child process edges when parent PID/name telemetry is available;
+- a behavioral fingerprint made from event types, process IDs, parent process IDs, filenames, hashes, registry values, network ports, and reputation reasons;
+- confidence scoring based on severity, evidence richness, fingerprint size, and recurrence; and
+- recurrence scoring when the same coarse attack pattern appears again.
+
+The public Python API is provided by `database.immune_memory.ImmuneMemoryStore`:
+
+```python
+from database.immune_memory import ImmuneMemoryStore
+
+memory = ImmuneMemoryStore("data/threat_history.sqlite3")
+remembered = memory.remember_incident(correlated_incident)
+matches = memory.search_similar_incidents(correlated_incident, limit=5)
+timeline = memory.get_attack_timeline(remembered.memory_id)
+fingerprint = memory.get_behavior_fingerprint(remembered.memory_id)
+```
+
+The orchestrator calls `remember_incident()` automatically for every correlated incident while preserving the existing `correlated_incidents` audit table. Memory data is stored in `immune_memory_incidents` and `behavior_fingerprints`; existing databases are upgraded additively.
+
 ## Detection model
 
 The anomaly detector uses `sklearn.ensemble.IsolationForest` when enough process samples exist. In small environments it falls back to deterministic z-score scoring so the engine still works in tests, containers, and low-process-count hosts.
@@ -205,7 +232,8 @@ Threat score inputs:
 2. **Anomaly score** - numeric outlier score from CPU, memory, thread, file, connection, port, and command-line-length features.
 3. **File reputation score** - executable provenance, signature, location, novelty, filename, and integrity-change signals.
 4. **Phase 3 signals** - registry persistence, suspicious network ports, and correlated attack chains.
-5. **Severity** - informational, low, medium, high, or critical based on the bounded combined score.
+5. **Immune memory** - recurring behavioral fingerprints and similar historical attack patterns for analyst context and future matching.
+6. **Severity** - informational, low, medium, high, or critical based on the bounded combined score.
 
 ## Policy engine
 
@@ -245,7 +273,7 @@ python main.py --once
 
 ## Windows compatibility
 
-The process monitor and isolation workflow use `psutil`, which works on Windows, Linux, and macOS. Policy path matching normalizes path separators and case. Service restart uses `sc stop` / `sc start` on Windows, `launchctl` on macOS, and `systemctl` on Linux.
+The process monitor and isolation workflow use `psutil`, which works on Windows, Linux, and macOS. Process snapshots include parent PID and parent process name when the platform permits access. Policy path matching normalizes path separators and case. Service restart uses `sc stop` / `sc start` on Windows, `launchctl` on macOS, and `systemctl` on Linux.
 
 ## Security review and production roadmap
 

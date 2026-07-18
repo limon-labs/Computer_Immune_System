@@ -40,6 +40,8 @@ class ThreatHistoryStore:
             "create_time": "ALTER TABLE threats ADD COLUMN create_time REAL",
             "policy_action": "ALTER TABLE threats ADD COLUMN policy_action TEXT NOT NULL DEFAULT 'monitor'",
             "file_reputation_score": "ALTER TABLE threats ADD COLUMN file_reputation_score REAL NOT NULL DEFAULT 0",
+            "parent_pid": "ALTER TABLE threats ADD COLUMN parent_pid INTEGER",
+            "parent_name": "ALTER TABLE threats ADD COLUMN parent_name TEXT",
         }
         for column, statement in migrations.items():
             if column not in existing:
@@ -52,9 +54,9 @@ class ThreatHistoryStore:
             cursor = connection.execute(
                 """
                 INSERT INTO threats (
-                    observed_at, pid, process_name, executable, command_line, create_time,
+                    observed_at, pid, process_name, executable, command_line, create_time, parent_pid, parent_name,
                     anomaly_score, behavior_score, file_reputation_score, threat_score, severity, policy_action, reasons, action
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.get("observed_at"),
@@ -63,6 +65,8 @@ class ThreatHistoryStore:
                     payload.get("executable"),
                     payload.get("command_line"),
                     payload.get("create_time"),
+                    payload.get("parent_pid"),
+                    payload.get("parent_name"),
                     float(payload.get("anomaly_score", 0.0)),
                     float(payload.get("behavior_score", 0.0)),
                     float(payload.get("file_reputation_score", 0.0)),

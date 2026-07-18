@@ -23,6 +23,8 @@ class ProcessSnapshot:
     username: str | None = None
     status: str | None = None
     create_time: float | None = None
+    parent_pid: int | None = None
+    parent_name: str | None = None
     cpu_percent: float = 0.0
     memory_percent: float = 0.0
     num_threads: int = 0
@@ -54,7 +56,7 @@ class ProcessMonitor:
     Process object and making separate syscalls for each attribute.
     """
 
-    ATTRS = ["pid", "name", "exe", "cmdline", "username", "status", "create_time", "cpu_percent", "memory_percent", "num_threads", "open_files"]
+    ATTRS = ["pid", "name", "exe", "cmdline", "username", "status", "create_time", "ppid", "cpu_percent", "memory_percent", "num_threads", "open_files"]
 
     def __init__(self, config: Mapping[str, Any] | None = None):
         self.config = config or {}
@@ -98,6 +100,7 @@ class ProcessMonitor:
         open_files = info.get("open_files") or []
         open_file_count = min(len(open_files), self.open_file_sample_limit)
         command_line = redact_command_line(command_line, self.command_line_max_length)
+        parent_pid = self._safe_parent_pid(process, info)
         return ProcessSnapshot(
             pid=int(info.get("pid") or process.pid),
             name=str(info.get("name") or "unknown"),
@@ -106,6 +109,8 @@ class ProcessMonitor:
             username=info.get("username"),
             status=info.get("status"),
             create_time=info.get("create_time"),
+            parent_pid=parent_pid,
+            parent_name=self._safe_parent_name(parent_pid),
             cpu_percent=float(info.get("cpu_percent") or 0.0),
             memory_percent=float(info.get("memory_percent") or 0.0),
             num_threads=int(info.get("num_threads") or 0),
@@ -115,6 +120,25 @@ class ProcessMonitor:
             remote_ports=list(sorted(set(remote_ports))),
             executable_sha256=self._hash_file(info.get("exe")) if self.hash_executables else None,
         )
+
+    @staticmethod
+    def _safe_parent_pid(process: psutil.Process, info: Mapping[str, Any]) -> int | None:
+        try:
+            parent_pid = info.get("ppid")
+            if parent_pid is None:
+                parent_pid = process.ppid()
+            return int(parent_pid) if parent_pid is not None else None
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _safe_parent_name(parent_pid: int | None) -> str | None:
+        if parent_pid is None:
+            return None
+        try:
+            return psutil.Process(parent_pid).name()
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            return None
 
     @staticmethod
     def _safe_connections(process: psutil.Process):

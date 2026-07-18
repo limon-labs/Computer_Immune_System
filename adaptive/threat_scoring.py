@@ -27,6 +27,8 @@ class ThreatEvent:
     threat_score: float
     severity: str
     file_reputation_score: float = 0.0
+    parent_pid: int | None = None
+    parent_name: str | None = None
     policy_action: str = "monitor"
     reasons: list[str] = field(default_factory=list)
     action: str = "none"
@@ -71,6 +73,8 @@ class ThreatScorer:
             executable=snapshot.executable,
             command_line=snapshot.command_line,
             create_time=snapshot.create_time,
+            parent_pid=snapshot.parent_pid,
+            parent_name=snapshot.parent_name,
             anomaly_score=round(anomaly.score, 2),
             behavior_score=round(behavior.score, 2),
             threat_score=round(combined, 2),

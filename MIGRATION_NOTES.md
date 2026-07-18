@@ -95,3 +95,26 @@ Operational considerations:
 3. Review the first-observation baseline before treating novelty as malicious.
 4. Keep response dry-run enabled; the current runtime forces this centrally.
 5. Back up the SQLite database before upgrading, even though migrations are additive.
+
+
+## Phase 5: Immune memory engine
+
+Phase 5 introduces durable attack memory while keeping existing event tables intact. Additive migrations create:
+
+- `immune_memory_incidents` for remembered incidents, confidence/recurrence scores, timelines, fingerprints, and attack graphs;
+- `behavior_fingerprints` for searchable fingerprint hashes and feature sets; and
+- `threats.parent_pid` / `threats.parent_name` so process lineage can appear in timelines and graphs.
+
+Existing `correlated_incidents` rows remain the audit log. New correlated incidents are also written to immune memory by the orchestrator. Programmatic users can instantiate `ImmuneMemoryStore` against the same SQLite file and call:
+
+- `remember_incident()`
+- `search_similar_incidents()`
+- `get_attack_timeline()`
+- `get_behavior_fingerprint()`
+
+Operational considerations:
+
+1. Similarity search uses local behavioral fingerprint overlap; it is intended for analyst context and future matching, not automatic enforcement.
+2. Recurrence scores increase when the same coarse pattern key reappears.
+3. Parent-process fields are best-effort because OS permissions may hide parent details.
+4. Back up the SQLite database before upgrading, even though migrations are additive.

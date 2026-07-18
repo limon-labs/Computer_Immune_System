@@ -171,5 +171,13 @@
       "*reverse_shell*",
       "*mimikatz*"
     ]
+  },
+  "adaptive_intelligence": {
+    "enabled": false,
+    "similarity_limit": 10,
+    "repeated_pattern_threshold": 2,
+    "high_confidence_threshold": 75.0,
+    "allow_policy_recommendations": true,
+    "auto_apply_recommendations": false
   }
 }

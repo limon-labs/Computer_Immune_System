@@ -166,6 +166,21 @@ flowchart TD
 **Priority:** Critical  
 **Complexity:** Medium-High
 
+
+### Adaptive immune intelligence
+
+**Goal:** transform Phase 5 immune memory into safe, analyst-guided adaptive detection intelligence without automatically changing enforcement policy.
+
+- New additive `adaptive_intelligence` package with modular architecture descriptors, pattern learning, analyst feedback, recommendation generation, and assessment orchestration.
+- Compare candidate incidents and behavior fingerprints against immune memory to produce adaptive scores, confidence, recurrence context, and explainable reasons.
+- Aggregate repeated attack patterns into learned patterns that can inform later model tuning, triage prioritization, and policy review.
+- Keep recommendations non-mutating by default; generated allowlist/blocklist candidates require explicit human or future signed-policy approval.
+- Preserve Phase 1-5 runtime behavior and dry-run response safety while creating extension points for future model governance.
+
+**Priority:** High
+**Complexity:** Medium-High
+**Primary risks:** feedback poisoning, overfitting to local incidents, false-confidence amplification, policy drift without governance.
+
 ### Secure update system
 
 **Goal:** safely deliver agent binaries, drivers, policies, models, and threat intelligence.
@@ -242,7 +257,7 @@ flowchart TD
 | v3 | ETW telemetry foundation | Critical | High | ETW process/image/network/DNS/PowerShell consumers, normalized event schema, process ancestry graph, event queue metrics | Detects process starts and script activity in near real time with measured event loss |
 | v4 | Policy and signer enforcement | Critical | Medium-High | Authenticode verification, publisher policy, signed policy bundles, policy linting, response-suppressing allowlist anchors | Unsigned/mis-signed binaries affect scoring; unsafe policies are rejected before deployment |
 | v5 | Filesystem and ransomware defense | High | High | Minifilter prototype, user-mode fallback, file reputation, ransomware burst heuristics, transactional quarantine/restore | Simulated ransomware is detected and contained in lab without data loss |
-| v6 | Network containment | High | High | WFP process-aware firewall integration, DNS blocking, quarantine network profile, rollback journal | Endpoint can isolate suspicious processes while preserving management connectivity |
+| v6 | Adaptive immune intelligence + network containment | High | High | Local adaptive_intelligence package, immune-memory similarity, analyst feedback, explainable policy recommendations, WFP process-aware firewall integration, DNS blocking, quarantine network profile, rollback journal | Endpoint can learn from repeated attack patterns, recommend policy changes without auto-applying them, and isolate suspicious processes while preserving management connectivity |
 | v7 | Secure updates and threat intelligence | Critical | High | Signed update manifests, staged rollout rings, signed TI feed bundles, offline cache, rollback | Agents update safely across pilot fleet and consume signed feeds with TTLs |
 | v8 | Memory inspection and advanced detections | High | Very High | VAD/RWX/module anomaly scanner, YARA memory rules, injection heuristics, evidence capture controls | Common injection and reflective-loading simulations generate high-confidence alerts |
 | v9 | Cloud management console | High | Very High | Multi-tenant console, RBAC, endpoint inventory, policy deployment, case management, SIEM/SOAR APIs | Operators can manage a pilot fleet and investigate alerts centrally |
@@ -260,16 +275,18 @@ flowchart TD
 | Filesystem/ransomware monitoring | High | High | High customer value and measurable lab validation |
 | Memory inspection | High | Very High | Powerful but complex and sensitive to stability/privacy constraints |
 | Threat intelligence feeds | High | Medium-High | Improves detection quickly if signing and FP workflows exist |
+| Adaptive immune intelligence | High | Medium-High | Converts local immune memory into recurrence-aware triage and analyst-reviewed policy recommendations |
 | Cloud console and fleet management | High | Very High | Required for enterprise adoption and multi-endpoint workflows |
 
 ## Dependencies and sequencing
 
 1. **Do first:** service architecture, schema validation, signed config/policy, structured telemetry schema.
 2. **Then:** ETW telemetry, signature verification, process ancestry, improved local detections.
-3. **Then:** secure update system and signed threat intelligence feeds.
-4. **Then:** filesystem and network enforcement with rollback.
-5. **Then:** memory inspection and kernel driver expansion after fuzzing and performance harnesses exist.
-6. **Finally:** large-scale cloud console, cross-endpoint correlation, and autonomous response governance.
+3. **Then:** immune memory, adaptive intelligence, analyst feedback, and recommendation review workflows.
+4. **Then:** secure update system and signed threat intelligence feeds.
+5. **Then:** filesystem and network enforcement with rollback.
+6. **Then:** memory inspection and kernel driver expansion after fuzzing and performance harnesses exist.
+7. **Finally:** large-scale cloud console, cross-endpoint correlation, and autonomous response governance.
 
 ## Engineering quality gates
 

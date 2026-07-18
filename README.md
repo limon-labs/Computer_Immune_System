@@ -68,6 +68,7 @@ sequenceDiagram
 - `monitor/` - process, network, file, and registry monitoring helpers.
 - `detection/` - anomaly detection, behavior analysis, signatures, and model compatibility wrappers.
 - `adaptive/` - threat scoring and adaptive helper utilities.
+- `adaptive_intelligence/` - Phase 6 immune-memory learning, feedback, assessments, and non-mutating policy recommendations.
 - `database/` - SQLite schema, threat-history repository, and immune-memory API.
 - `response/` - response primitives such as process termination, quarantine, and network blocking abstractions.
 - `self_healing/` - isolation, file repair, service restart, and snapshot restore helpers.
@@ -221,6 +222,18 @@ fingerprint = memory.get_behavior_fingerprint(remembered.memory_id)
 ```
 
 The orchestrator calls `remember_incident()` automatically for every correlated incident while preserving the existing `correlated_incidents` audit table. Memory data is stored in `immune_memory_incidents` and `behavior_fingerprints`; existing databases are upgraded additively.
+
+## Phase 6 adaptive immune intelligence
+
+Phase 6 is implemented as a new additive `adaptive_intelligence` package. It does not change Phase 1-5 enforcement behavior. Instead, it provides modular components for learning from immune memory and analyst feedback:
+
+- `default_phase6_architecture()` documents the package architecture and extension points in code.
+- `MemoryPatternLearner` aggregates repeated remembered incidents into learned behavior patterns.
+- `FeedbackLedger` records analyst verdicts and turns them into bounded confidence adjustments.
+- `PolicyRecommendationEngine` creates explainable allowlist/blocklist/priority recommendations without mutating policy files.
+- `AdaptiveIntelligenceEngine` compares candidate incidents against immune memory and returns adaptive score, confidence, recurrence context, top matches, recommendations, and reasons.
+
+Default configuration keeps Phase 6 non-enforcing: `adaptive_intelligence.enabled` is `false`, recommendations are allowed, and `auto_apply_recommendations` is `false`.
 
 ## Detection model
 
